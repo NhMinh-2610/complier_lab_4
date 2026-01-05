@@ -81,7 +81,16 @@ void freeType(Type* type) {
 }
 
 int sizeOfType(Type* type) {
-  // TODO
+  switch (type->typeClass) {
+  case TP_INT:
+    return INT_SIZE;
+  case TP_CHAR:
+    return CHAR_SIZE;
+  case TP_ARRAY:
+    return type->arraySize * sizeOfType(type->elementType);
+  default:
+    return 0;
+  }
 }
 
 /******************* Constant utility ******************************/
@@ -333,6 +342,7 @@ void cleanSymTab(void) {
 }
 
 void enterBlock(Scope* scope) {
+  scope->outer = symtab->currentScope;
   symtab->currentScope = scope;
 }
 
@@ -341,7 +351,52 @@ void exitBlock(void) {
 }
 
 void declareObject(Object* obj) {
-  // TODO: rewrite the function to fill all values of attributes
+  // Add object to the appropriate scope
+  if (symtab->currentScope == NULL) {
+    // Add to global object list if no current scope
+    addObject(&(symtab->globalObjectList), obj);
+  } else {
+    // Add to current scope's object list
+    addObject(&(symtab->currentScope->objList), obj);
+  }
+
+  // Fill attributes based on object kind
+  switch (obj->kind) {
+  case OBJ_VARIABLE:
+    obj->varAttrs->scope = symtab->currentScope;
+    if (symtab->currentScope != NULL) {
+      obj->varAttrs->localOffset = symtab->currentScope->frameSize;
+      symtab->currentScope->frameSize += sizeOfType(obj->varAttrs->type);
+    }
+    break;
+    
+  case OBJ_PARAMETER:
+    obj->paramAttrs->scope = symtab->currentScope;
+    if (symtab->currentScope != NULL) {
+      obj->paramAttrs->localOffset = symtab->currentScope->frameSize;
+      symtab->currentScope->frameSize += sizeOfType(obj->paramAttrs->type);
+      
+      // Add parameter to the parent function/procedure's paramList
+      if (symtab->currentScope->owner != NULL) {
+        if (symtab->currentScope->owner->kind == OBJ_FUNCTION) {
+          addObject(&(symtab->currentScope->owner->funcAttrs->paramList), obj);
+          symtab->currentScope->owner->funcAttrs->paramCount++;
+        } else if (symtab->currentScope->owner->kind == OBJ_PROCEDURE) {
+          addObject(&(symtab->currentScope->owner->procAttrs->paramList), obj);
+          symtab->currentScope->owner->procAttrs->paramCount++;
+        }
+      }
+    }
+    break;
+    
+  case OBJ_CONSTANT:
+  case OBJ_TYPE:
+  case OBJ_FUNCTION:
+  case OBJ_PROCEDURE:
+  case OBJ_PROGRAM:
+    // These objects don't need additional attribute initialization
+    break;
+  }
 }
 
 
