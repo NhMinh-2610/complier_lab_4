@@ -20,11 +20,24 @@ extern Object* writelnProcedure;
 CodeBlock* codeBlock;
 
 void genVariableAddress(Object* var) {
-  // TODO
+  int level = 0;
+  Scope* scope = symtab->currentScope;
+  while (scope != VARIABLE_SCOPE(var)) {
+    level++;
+    scope = scope->outer;
+  }
+  genLA(level, VARIABLE_OFFSET(var));
 }
 
 void genVariableValue(Object* var) {
-  // TODO
+  int level = 0;
+  Scope* scope = symtab->currentScope;
+  while (scope != VARIABLE_SCOPE(var)) {
+    level++;
+    scope = scope->outer;
+  }
+  genLV(level, VARIABLE_OFFSET(var));
+  genLI();
 }
 
 int isPredefinedFunction(Object* func) {
